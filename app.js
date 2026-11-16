@@ -1,8 +1,10 @@
 'use strict';
 const TABS=['Dashboard','Heijunka','Station 11','Station 6','Station 1','Spare Tire','Inventory','History'];
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-let tab='Dashboard',state=null,room=null,key=null,role=null,stationKey=null;
-let revision=-1,clockOffset=0,busy=false,online=false,lastContact=0;
+let tab='Dashboard',state=null,room=null,key=null,role=null,broadcastKey=null;
+let allowedTab=null,stationLinks={};
+let revision=-1,busy=false,online=false,lastContact=0;
+let serverEpoch=Date.now(),clockAnchor=performance.now();
 let channel=null,realtimeReady=false,refreshing=null,refreshAgain=false,pending=null;
 const db=window.supabase.createClient(KANBAN_CONFIG.url,KANBAN_CONFIG.publishableKey,{
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
@@ -18,7 +20,7 @@ function status(){
     `${realtimeReady?'LIVE':'CONNECTED · periodic sync'} — ${label} · ${busy?'Saving…':'shared production state'}`;
   el('connection').classList.toggle('disconnected',!!room&&!online);
 }
-function repaint(){if(state)render();status();}
+function repaint(){if(state)render();status();updateClocks();}
 function updateHash(){
   const p=new URLSearchParams({room,key,tab});
   window.history.replaceState(null,'','#'+p);
@@ -27,13 +29,16 @@ function makeLink(access,view){
   const url=new URL(location.href);url.search='';url.hash=new URLSearchParams({room,key:access,tab:view});return url.href;
 }
 function showLinks(){
-  el('share').hidden=false;
+  el('share').hidden=role!=='instructor';
+  if(role!=='instructor'){el('device-links').replaceChildren();return;}
   el('room-name').textContent='Room '+room.slice(0,8)+' · '+(role==='instructor'?'Instructor access':'Station access');
   el('access-note').textContent=role==='instructor'?
     'Bookmark this page for instructor access. Open the station links on your other devices.':
     'This device can complete station work. The instructor controls Start, Reset, the interruption and Restore.';
   const entries=role==='instructor'?[['Instructor',key,'Dashboard']]:[];
-  for(const view of TABS.filter(t=>t!=='Dashboard'))entries.push([view,stationKey,view]);
+  for(const view of TABS.filter(t=>t!=='Dashboard')){
+    if(stationLinks[view])entries.push([view,stationLinks[view],view]);
+  }
   el('device-links').replaceChildren(...entries.map(([label,access,view])=>{
     const row=document.createElement('div');row.className='device-link';
     const a=document.createElement('a');a.textContent=label;a.href=makeLink(access,view);
@@ -47,9 +52,12 @@ function showLinks(){
 }
 function applySnapshot(data,sentAt){
   lastContact=Date.now();online=true;
-  clockOffset=data.serverTime-((sentAt+lastContact)/2);
+  serverEpoch=data.serverTime+Math.max(0,lastContact-sentAt)/2;
+  clockAnchor=performance.now();
   if(data.revision>=revision){state=data.state;revision=data.revision;}
-  const first=role===null;role=data.role;stationKey=data.stationKey;
+  const first=role===null;role=data.role;broadcastKey=data.broadcastKey;
+  allowedTab=data.allowedTab;stationLinks=data.stationLinks||{};
+  if(role!=='instructor'&&allowedTab&&tab!==allowedTab){tab=allowedTab;updateHash();}
   if(first){el('setup').hidden=true;showLinks();subscribe();}
   repaint();
 }
@@ -70,7 +78,7 @@ async function refresh(){
   if(refreshAgain){refreshAgain=false;setTimeout(refresh,100);}
 }
 function subscribe(){
-  channel=db.channel('kanban:'+stationKey)
+  channel=db.channel('kanban:'+broadcastKey)
     .on('broadcast',{event:'changed'},()=>refresh())
     .subscribe(s=>{realtimeReady=s==='SUBSCRIBED';status();if(realtimeReady)refresh();});
 }
@@ -87,8 +95,37 @@ function countdown(){
   if(state.start===null)return 'STOPPED — waiting for instructor to start';
   if(state.attack)return 'Production clock paused';
   if(state.released===5)return 'All batches released';
-  const ms=Math.max(0,state.released*480000-(Date.now()+clockOffset-state.start-state.paused));
+  const ms=Math.max(0,state.released*480000-(serverNow()-state.start-state.paused));
   return 'Next batch in '+String(Math.floor(ms/60000)).padStart(2,'0')+':'+String(Math.floor(ms%60000/1000)).padStart(2,'0');
+}
+function serverNow(){return serverEpoch+performance.now()-clockAnchor;}
+const wallClockFormat=new Intl.DateTimeFormat('en-US',{
+  timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZoneName:'short'
+});
+const durationFormat=typeof Intl.DurationFormat==='function'?
+  new Intl.DurationFormat('en-US',{style:'digital',hoursDisplay:'always'}):null;
+function formatElapsed(start,end){
+  const endMs=Math.max(start,Math.trunc(end));
+  let duration;
+  if(globalThis.Temporal?.Instant){
+    duration=Temporal.Instant.fromEpochMilliseconds(endMs).since(
+      Temporal.Instant.fromEpochMilliseconds(start),{largestUnit:'hours',smallestUnit:'seconds',roundingMode:'floor'});
+  }else{
+    // Fixed elapsed seconds, not calendar arithmetic; works on older tablet browsers.
+    const seconds=Math.floor((endMs-start)/1000);
+    duration={hours:Math.floor(seconds/3600),minutes:Math.floor(seconds/60)%60,seconds:seconds%60};
+  }
+  if(durationFormat)return durationFormat.format(duration);
+  return [duration.hours,duration.minutes,duration.seconds].map(n=>String(n).padStart(2,'0')).join(':');
+}
+function updateClocks(){
+  const now=serverNow();
+  el('wall-clock').textContent=wallClockFormat.format(now);
+  el('wall-clock').dateTime=new Date(now).toISOString();
+  el('run-clock').textContent=!state?'00:00:00':!online?'Waiting for connection':state.start===null?'00:00:00':
+    formatElapsed(state.start,(state.attack?state.attackStart:now)-state.paused);
+  el('run-clock-label').textContent=state?.attack?'Run time · paused':'Run time';
+  el('batch-clock').textContent=state?countdown():'Waiting for a training room';
 }
 function btn(label,action,cls='',disabled=false){
   const admin=/^(start|attack|restore|reset)\(/.test(action);
@@ -162,7 +199,8 @@ setInterval(async()=>{
   if(pending&&!busy){await sendPending();return;}
   await refresh();
 },2000);
-setInterval(()=>{const timer=el('timer');if(timer&&state)timer.textContent=countdown();},250);
+setInterval(updateClocks,250);
 document.addEventListener('DOMContentLoaded',()=>{
+  updateClocks();
   if(location.hash)join(new URLSearchParams(location.hash.slice(1))).catch(e=>message(e.message));
 });

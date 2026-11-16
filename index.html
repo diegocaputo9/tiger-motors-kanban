@@ -5,16 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>Tiger Motors | Shared Digital Kanban</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="config.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20261116-station-access">
+  <script src="config.js?v=20261116-station-access" defer></script>
   <script src="vendor/supabase-2.119.0.js" defer></script>
-  <script src="app.js" defer></script>
-  <script src="render.js" defer></script>
+  <script src="app.js?v=20261116-station-access" defer></script>
+  <script src="render.js?v=20261116-station-access" defer></script>
 </head>
 <body>
   <header><h1>Tiger Motors | Digital Heijunka &amp; Kanban</h1><div>Shared training run · touchscreen or Enter</div></header>
   <div id="connection" role="status" aria-live="polite">Choose or create a training room.</div>
   <div id="messages" role="alert"></div>
+  <section id="clocks" aria-label="Shared production clocks">
+    <div class="clock-chip"><span>Chicago time</span><time id="wall-clock">--:--:--</time></div>
+    <div class="clock-chip"><span id="run-clock-label">Run time</span><strong id="run-clock">00:00:00</strong></div>
+    <div class="clock-chip"><span>Batch schedule</span><strong id="batch-clock">Waiting for a training room</strong></div>
+  </section>
   <section id="setup" class="setup panel">
     <h2>One run. Every station connected.</h2>
     <p>Create a room on the instructor computer, then open a station link on each tablet or computer. Keep these links for this training run.</p>
@@ -29,7 +34,7 @@
     <p id="room-name"></p>
     <p id="access-note"></p>
     <div id="device-links"></div>
-    <p class="small muted">These links grant access to this room. Keep the instructor link private. Links contain access keys after #; they are never part of the public repository.</p>
+    <p class="small muted">Each station link opens only its assigned screen. Keep the instructor link private. Room access keys are never part of the public repository.</p>
   </details>
   <nav id="tabs" aria-label="Station views"></nav>
   <main id="app"></main>
