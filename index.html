@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Tiger Motors | Shared Digital Kanban</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js" defer></script>
+  <script src="vendor/supabase-2.119.0.js" defer></script>
+  <script src="app.js" defer></script>
+  <script src="render.js" defer></script>
+</head>
+<body>
+  <header><h1>Tiger Motors | Digital Heijunka &amp; Kanban</h1><div>Shared training run · touchscreen or Enter</div></header>
+  <div id="connection" role="status" aria-live="polite">Choose or create a training room.</div>
+  <div id="messages" role="alert"></div>
+  <section id="setup" class="setup panel">
+    <h2>One run. Every station connected.</h2>
+    <p>Create a room on the instructor computer, then open a station link on each tablet or computer. Keep these links for this training run.</p>
+    <button id="create-room" class="primary" type="button">CREATE TRAINING ROOM</button>
+    <form id="join-room">
+      <label for="room-link">Already have a room? Paste its station or instructor link</label>
+      <div class="row"><input id="room-link" type="url" required placeholder="Paste your room link"><button type="submit">JOIN ROOM</button></div>
+    </form>
+  </section>
+  <details id="share" class="setup panel" hidden>
+    <summary>Device links &amp; room access</summary>
+    <p id="room-name"></p>
+    <p id="access-note"></p>
+    <div id="device-links"></div>
+    <p class="small muted">These links grant access to this room. Keep the instructor link private. Links contain access keys after #; they are never part of the public repository.</p>
+  </details>
+  <nav id="tabs" aria-label="Station views"></nav>
+  <main id="app"></main>
+</body>
+</html>
