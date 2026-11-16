@@ -100,6 +100,30 @@ python3 -m http.server 8780 --bind 127.0.0.1
 
 Open `http://127.0.0.1:8780/`. This preview still connects to the configured cloud database.
 
+## Keep-alive
+
+GitHub Actions runs **Kanban database keep-alive** every six hours at 01:37,
+07:37, 13:37, and 19:37 UTC. It works while all classroom computers are off.
+It calls the read-only `kanban_keepalive` database RPC with the public publishable
+key, validates the database response, and retries transient connection failures.
+It neither reads room data nor inserts, resets, deletes, or changes any records.
+It targets only `lnlswachpjrxoaealtpd`; Tiger Motors Lean is not contacted.
+
+The endpoint is installed by `db/keepalive.sql`. On a fresh database, apply it
+after the other schema files. Update both the workflow and `config.js` if the
+destination project or publishable key changes.
+
+View runs or start a manual check from the repository's **Actions → Kanban
+database keep-alive → Run workflow**. A failed check marks the workflow as failed;
+GitHub notifications follow your account's Actions notification settings.
+
+This generates database activity to reduce inactivity pausing; Supabase does not
+guarantee that a particular request rate prevents pausing on the Free plan.
+GitHub may delay scheduled runs and automatically disables public-repository
+schedules after 60 days without repository activity. Make a normal repository
+update before then, or re-enable the workflow in Actions if it becomes disabled.
+This check does not resume an already paused project and is not a data backup.
+
 ## Verification
 
 Browser checks cover four isolated sessions, Start, the station dependency chain,

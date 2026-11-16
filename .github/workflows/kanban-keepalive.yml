@@ -1,0 +1,42 @@
+name: Kanban database keep-alive
+
+on:
+  schedule:
+    # UTC; off the top of the hour to avoid the busiest scheduler period.
+    - cron: '37 1,7,13,19 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: kanban-database-keepalive
+  cancel-in-progress: false
+
+jobs:
+  database-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://lnlswachpjrxoaealtpd.supabase.co
+      # This is the same intentionally public publishable key as config.js.
+      # It grants no room access and is not a secret/service-role key.
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_oup0Mkv1sdmeA0du_bVHdw_crGcZW1W
+    steps:
+      - name: Check the Kanban database without changing production
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+          curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 30 \
+            --retry 3 --retry-delay 5 --retry-all-errors \
+            --request POST \
+            --header "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            --header 'Content-Type: application/json' \
+            --header 'Cache-Control: no-cache' \
+            --data '{}' \
+            "$SUPABASE_URL/rest/v1/rpc/kanban_keepalive" \
+            --output "$response_file"
+          jq --exit-status '.ok == true and (.checked_at | type == "string")' "$response_file"
+          echo "Read-only database keep-alive succeeded at $(jq -r '.checked_at' "$response_file")"
