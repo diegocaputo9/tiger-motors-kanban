@@ -1,11 +1,13 @@
 'use strict';
 const TABS=['Dashboard','Heijunka','Station 11','Station 6','Station 1','Spare Tire','Inventory','History'];
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DEVICE_ACCESS='tm-permanent-device-v1';
 let tab='Dashboard',state=null,room=null,key=null,role=null,broadcastKey=null;
 let allowedTab=null,stationLinks={};
 let revision=-1,busy=false,online=false,lastContact=0;
 let serverEpoch=Date.now(),clockAnchor=performance.now();
 let channel=null,realtimeReady=false,refreshing=null,refreshAgain=false,pending=null;
+let accessToOpen=null,joining=false;
 const db=window.supabase.createClient(KANBAN_CONFIG.url,KANBAN_CONFIG.publishableKey,{
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
   global:{fetch:(url,options)=>fetch(url,{...options,signal:AbortSignal.timeout(12000)})}
@@ -15,25 +17,26 @@ const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function message(text=''){el('messages').textContent=text;}
 function status(){
   const label=role==='instructor'?'Instructor':'Station';
-  el('connection').textContent=!room?'Choose or create a training room.':!online?
+  el('connection').textContent=!key?'Open your permanent instructor or station link.':!online?
     'CONNECTION LOST — controls paused. Reconnecting…':
-    `${realtimeReady?'LIVE':'CONNECTED · periodic sync'} — ${label} · ${busy?'Saving…':'shared production state'}`;
+    `${realtimeReady?'LIVE':'CONNECTED'} — ${allowedTab||label} · ${busy?'Saving…':'production synchronized'}`;
   el('connection').classList.toggle('disconnected',!!room&&!online);
 }
 function repaint(){if(state)render();status();updateClocks();}
 function updateHash(){
-  const p=new URLSearchParams({room,key,tab});
+  const p=new URLSearchParams({key,tab});
   window.history.replaceState(null,'','#'+p);
+  if(role)try{localStorage.setItem(DEVICE_ACCESS,JSON.stringify({key,tab}));}catch{}
 }
 function makeLink(access,view){
-  const url=new URL(location.href);url.search='';url.hash=new URLSearchParams({room,key:access,tab:view});return url.href;
+  const url=new URL(KANBAN_CONFIG.siteUrl||location.href);url.search='';url.hash=new URLSearchParams({key:access,tab:view});return url.href;
 }
 function showLinks(){
   el('share').hidden=role!=='instructor';
   if(role!=='instructor'){el('device-links').replaceChildren();return;}
-  el('room-name').textContent='Room '+room.slice(0,8)+' · '+(role==='instructor'?'Instructor access':'Station access');
+  el('room-name').textContent='One permanent production line · reuse these links for every run';
   el('access-note').textContent=role==='instructor'?
-    'Bookmark this page for instructor access. Open the station links on your other devices.':
+    'Bookmark the instructor link and send each station link once. Reset Run starts over without changing any links.':
     'This device can complete station work. The instructor controls Start, Reset, the interruption and Restore.';
   const entries=role==='instructor'?[['Instructor',key,'Dashboard']]:[];
   for(const view of TABS.filter(t=>t!=='Dashboard')){
@@ -58,7 +61,8 @@ function applySnapshot(data,sentAt){
   const first=role===null;role=data.role;broadcastKey=data.broadcastKey;
   allowedTab=data.allowedTab;stationLinks=data.stationLinks||{};
   if(role!=='instructor'&&allowedTab&&tab!==allowedTab){tab=allowedTab;updateHash();}
-  if(first){el('setup').hidden=true;showLinks();subscribe();}
+  if(first){message();el('setup').hidden=true;showLinks();subscribe();}
+  updateHash();
   repaint();
 }
 async function rpc(name,args){
@@ -67,11 +71,11 @@ async function rpc(name,args){
   return data;
 }
 async function refresh(){
-  if(!room)return;
+  if(!room||!key)return;
   if(refreshing){refreshAgain=true;return refreshing;}
   refreshing=(async()=>{
     try{const sent=Date.now();const data=await rpc('kanban_room_action',{p_room:room,p_key:key});applySnapshot(data,sent);}
-    catch(e){online=false;repaint();if(!state)message('Unable to join this room. Check the link and internet connection. '+e.message);}
+    catch(e){online=false;repaint();if(!state)message('Unable to open this screen. Check your permanent link and internet connection. '+e.message);}
     finally{refreshing=null;}
   })();
   await refreshing;
@@ -83,10 +87,16 @@ function subscribe(){
     .subscribe(s=>{realtimeReady=s==='SUBSCRIBED';status();if(realtimeReady)refresh();});
 }
 async function join(params){
-  if(!UUID.test(params.get('room')||'')||!UUID.test(params.get('key')||''))throw new Error('The room link is incomplete.');
-  room=params.get('room');key=params.get('key');
-  tab=TABS.includes(params.get('tab'))?params.get('tab'):'Dashboard';
-  updateHash();status();await refresh();
+  if(!UUID.test(params.get('key')||''))throw new Error('Open a complete instructor or station link.');
+  accessToOpen=new URLSearchParams(params);
+  key=params.get('key');
+  if(joining)return;
+  joining=true;
+  try{
+    if(!room){const info=await rpc('kanban_session_info',{});if(!UUID.test(info.sessionId||''))throw new Error('The production line is not configured.');room=info.sessionId;}
+    tab=TABS.includes(params.get('tab'))?params.get('tab'):'Dashboard';
+    updateHash();status();await refresh();
+  }finally{joining=false;}
 }
 function queue11(){return state.orders.filter(o=>o.status==='released');}
 function queueK(cell){return state.kanbans.filter(k=>k.cell===cell&&k.status==='open');}
@@ -125,7 +135,7 @@ function updateClocks(){
   el('run-clock').textContent=!state?'00:00:00':!online?'Waiting for connection':state.start===null?'00:00:00':
     formatElapsed(state.start,(state.attack?state.attackStart:now)-state.paused);
   el('run-clock-label').textContent=state?.attack?'Run time · paused':'Run time';
-  el('batch-clock').textContent=state?countdown():'Waiting for a training room';
+  el('batch-clock').textContent=state?countdown():'Waiting for production';
 }
 function btn(label,action,cls='',disabled=false){
   const admin=/^(start|attack|restore|reset)\(/.test(action);
@@ -168,23 +178,10 @@ document.addEventListener('keydown',e=>{
   const f={'Station 11':complete11,'Station 6':complete6,'Station 1':complete1,'Spare Tire':completeSpare}[tab];
   if(f){e.preventDefault();f();}
 });
-el('create-room').addEventListener('click',async()=>{
-  el('create-room').disabled=true;message();
-  const button=el('create-room');
-  // Keep the same keys on retry: a lost response must not create another room.
-  if(!button.roomKeys)button.roomKeys={p_room:crypto.randomUUID(),p_instructor:crypto.randomUUID(),p_station:crypto.randomUUID()};
-  try{
-    const keys=button.roomKeys;
-    await rpc('kanban_create_room',keys);
-    await join(new URLSearchParams({room:keys.p_room,key:keys.p_instructor,tab:'Dashboard'}));
-    el('share').open=true;
-  }catch(e){message('Could not create the room. '+e.message);}
-  finally{el('create-room').disabled=false;}
-});
 el('join-room').addEventListener('submit',async e=>{
   e.preventDefault();message();
   try{const url=new URL(el('room-link').value);const p=new URLSearchParams(url.hash.slice(1));
-    if(!UUID.test(p.get('room')||'')||!UUID.test(p.get('key')||''))throw new Error('Paste a complete room link.');
+    if(!UUID.test(p.get('key')||''))throw new Error('Paste a complete instructor or station link.');
     // Reload clears the previous room subscription and any in-flight requests.
     const target=new URL(location.href);target.hash=p;location.replace(target);location.reload();
   }catch(err){message(err.message);}
@@ -195,12 +192,15 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();
 window.addEventListener('pageshow',()=>{if(room)refresh();});
 window.addEventListener('hashchange',()=>location.reload());
 setInterval(async()=>{
-  if(room&&Date.now()-lastContact>6000){online=false;repaint();}
+  if(!room&&accessToOpen&&!joining){join(accessToOpen).catch(e=>message(e.message));return;}
+  if(room&&key&&Date.now()-lastContact>6000){online=false;repaint();}
   if(pending&&!busy){await sendPending();return;}
   await refresh();
 },2000);
 setInterval(updateClocks,250);
 document.addEventListener('DOMContentLoaded',()=>{
   updateClocks();
-  if(location.hash)join(new URLSearchParams(location.hash.slice(1))).catch(e=>message(e.message));
+  let params=new URLSearchParams(location.hash.slice(1));
+  if(!params.get('key'))try{const saved=JSON.parse(localStorage.getItem(DEVICE_ACCESS)||'null');if(saved?.key)params=new URLSearchParams(saved);}catch{}
+  if(params.get('key'))join(params).catch(e=>message(e.message));
 });

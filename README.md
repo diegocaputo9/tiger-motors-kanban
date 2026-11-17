@@ -1,16 +1,16 @@
 # Tiger Motors — Shared Digital Kanban
 
 A buildless HTML/JavaScript version of the Tiger Motors training simulation.
-GitHub Pages serves the interface; Supabase stores and synchronizes each room.
+GitHub Pages serves the interface; Supabase stores one permanent production session.
 No Python installation or local server is needed to use the hosted site.
 
-## Start a session
+## Use the permanent links
 
-1. Open the hosted site on the instructor computer and select **Create training room**.
-2. Bookmark that page: its link grants instructor access to the room.
-3. Expand **Device links & room access**. Copy **Station 11**, **Station 6**, and
-   **Station 1** to the other three computers/tablets. Share **Spare Tire** with
-   its operator as well. More devices can show Heijunka, Inventory, or History.
+1. Open and bookmark the permanent **Instructor** link on the main computer.
+2. Expand **Permanent device links** on the Dashboard.
+3. Send **Station 11**, **Station 6**, **Station 1**, and **Spare Tire** to their
+   devices once, then bookmark each link. More devices can show Heijunka,
+   Inventory, or History.
 4. Keep each device online with the browser visible and the screen awake.
 5. Select **Start timed run** on the instructor Dashboard.
 
@@ -18,8 +18,25 @@ Every device joins the same production state. Each shared link is restricted to
 its assigned screen and its own station action, enforced by the database.
 Station devices cannot navigate to other tabs, obtain other station links, or
 control the instructor Dashboard. The instructor retains all eight tabs.
-Opening a room link or refreshing does **not** reset production. The instructor
-can reset the shared run explicitly. Starting a new room creates an independent run.
+Opening a link or refreshing does **not** reset production. Between sessions,
+select **Reset Run**, then **Start Timed Run**. Reset keeps the same session and
+all existing access keys, so no links need to be resent. Room creation is disabled.
+Each device remembers its last authorized screen locally; opening the base site
+on that same browser returns to its saved screen. On a new browser, use its
+permanent access link once. Links always point to the hosted site, including when
+the instructor opened a local HTML preview.
+
+## iPad station screens
+
+The four operator screens prioritize 11-inch iPads in landscape and also support
+portrait. The station shell fills Safari's dynamic visible viewport with safe-area
+padding. Models sit inside a reserved image track; the action bar occupies its
+own bottom track. A/T images, spare-tire labels, empty queues, and stopped states
+cannot move the Next button. Images are contained without cropping.
+
+Normal station use needs no vertical or horizontal page scrolling. All clocks,
+the current task, queue count, and the large Next button remain visible. Repeated
+background checks leave unchanged station DOM and loaded images intact.
 
 ## Production and interruption
 
@@ -32,7 +49,7 @@ can reset the shared run explicitly. Starting a new room creates an independent 
   blocks station transactions, and pauses the shared production clock.
 - The instructor Dashboard displays the incident and retains **Restore production**.
   Restore unlocks stations and compensates the production clock for the pause.
-- **Reset run** resets all devices in this room.
+- **Reset run** resets production on all devices, without replacing their links.
 
 The ransomware display is a simulation. It does not encrypt or delete files.
 
@@ -59,10 +76,10 @@ is retried with the **same** UUID, so it cannot complete another item accidental
 
 ## Access and deployment
 
-Room access keys are random UUIDs in URL fragments, separate from the public
+Access keys are random UUIDs in URL fragments, separate from the public
 Supabase publishable key. Keep the instructor URL private and share station URLs
 only with the participants. Anyone with a room link has its granted access.
-The public repository contains no instructor/station room keys or service-role key.
+The public repository contains no instructor/station access keys or service-role key.
 
 The active database lives in **diegocaputo9's Project**, Supabase project
 `lnlswachpjrxoaealtpd`. All three original rooms were copied from `tiger-motors-lean`
@@ -70,7 +87,10 @@ with their state, history, instructor keys, revisions, receipts, and timestamps.
 The source project was only read during this migration; nothing there was changed
 or deleted. `config.js` connects the GitHub Pages site only to the destination.
 
-`kanban_private.rooms` and `kanban_private.station_access` have RLS enabled,
+`kanban_private.installation` selects one permanent production record. Older room
+records are retained untouched, but public application actions accept only the
+selected session. Its existing instructor/station keys remain unchanged.
+`kanban_private.rooms`, `kanban_private.station_access`, and the installation table have RLS enabled,
 no client table grants, and capability-checked RPC access. Each screen has an
 independent key. Station snapshots contain only that screen's data and shared
 clock/interruption fields. Cross-station RPC actions are rejected. Legacy broad
@@ -82,7 +102,8 @@ The unguessable broadcast topic carries only revision hints, never authoritative
 state or instructor credentials. Receiving a forged hint cannot mutate a room.
 
 `db/schema.sql` records the base schema; `db/station-access.sql` adds assigned-screen
-permissions. On a new Supabase project, apply both files once **in that order**
+permissions; `db/permanent-session.sql` selects one reusable line and disables room
+creation. On a new Supabase project, apply these three files once **in that order**
 with the SQL editor or migration tooling, then change `config.js`
 to that project's URL and **publishable** key. Never use a secret/service-role key.
 Realtime public Broadcast must be allowed in the project's Realtime settings.
@@ -135,3 +156,10 @@ Migration checks use five isolated sessions to cover all four restricted station
 URL tampering, cross-station RPC denial, minimal snapshots, all eight clock views,
 Realtime interruption/restore, pause behavior, older-tablet formatting, and zero
 requests to the source project.
+Permanent-session checks confirm the same keys survive Reset, public creation is
+denied, and production dependencies still work in a rolled-back database transaction.
+Chromium and Safari's WebKit engine check all four stations at eight viewport sizes,
+including iPad landscape/portrait with reduced browser-chrome height. A/T, spare,
+waiting, and stopped fixtures require no page scrolling and use identical button
+coordinates. These are browser-emulation checks; physical iPad hardware was not
+available for verification.

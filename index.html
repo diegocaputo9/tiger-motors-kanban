@@ -2,39 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tiger Motors">
   <meta name="referrer" content="no-referrer">
   <title>Tiger Motors | Shared Digital Kanban</title>
-  <link rel="stylesheet" href="styles.css?v=20261116-station-access">
-  <script src="config.js?v=20261116-station-access" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20261117-permanent-ipad">
+  <script src="config.js?v=20261117-permanent-ipad" defer></script>
   <script src="vendor/supabase-2.119.0.js" defer></script>
-  <script src="app.js?v=20261116-station-access" defer></script>
-  <script src="render.js?v=20261116-station-access" defer></script>
+  <script src="app.js?v=20261117-permanent-ipad" defer></script>
+  <script src="render.js?v=20261117-permanent-ipad" defer></script>
 </head>
 <body>
   <header><h1>Tiger Motors | Digital Heijunka &amp; Kanban</h1><div>Shared training run · touchscreen or Enter</div></header>
-  <div id="connection" role="status" aria-live="polite">Choose or create a training room.</div>
+  <div id="connection" role="status" aria-live="polite">Open your permanent instructor or station link.</div>
   <div id="messages" role="alert"></div>
   <section id="clocks" aria-label="Shared production clocks">
     <div class="clock-chip"><span>Chicago time</span><time id="wall-clock">--:--:--</time></div>
     <div class="clock-chip"><span id="run-clock-label">Run time</span><strong id="run-clock">00:00:00</strong></div>
-    <div class="clock-chip"><span>Batch schedule</span><strong id="batch-clock">Waiting for a training room</strong></div>
+    <div class="clock-chip"><span>Batch schedule</span><strong id="batch-clock">Waiting for production</strong></div>
   </section>
   <section id="setup" class="setup panel">
-    <h2>One run. Every station connected.</h2>
-    <p>Create a room on the instructor computer, then open a station link on each tablet or computer. Keep these links for this training run.</p>
-    <button id="create-room" class="primary" type="button">CREATE TRAINING ROOM</button>
+    <h2>One production line. Permanent station links.</h2>
+    <p>Open your saved instructor or station link. Use the same bookmark every time; the instructor resets production between runs.</p>
     <form id="join-room">
-      <label for="room-link">Already have a room? Paste its station or instructor link</label>
-      <div class="row"><input id="room-link" type="url" required placeholder="Paste your room link"><button type="submit">JOIN ROOM</button></div>
+      <label for="room-link">Open an instructor or station link</label>
+      <div class="row"><input id="room-link" type="url" required placeholder="Paste your permanent link"><button type="submit">OPEN SCREEN</button></div>
     </form>
   </section>
   <details id="share" class="setup panel" hidden>
-    <summary>Device links &amp; room access</summary>
+    <summary>Permanent device links</summary>
     <p id="room-name"></p>
     <p id="access-note"></p>
     <div id="device-links"></div>
-    <p class="small muted">Each station link opens only its assigned screen. Keep the instructor link private. Room access keys are never part of the public repository.</p>
+    <p class="small muted">Send each link once and bookmark it on the assigned device. Resetting production keeps all links working. Keep the instructor link private.</p>
   </details>
   <nav id="tabs" aria-label="Station views"></nav>
   <main id="app"></main>
