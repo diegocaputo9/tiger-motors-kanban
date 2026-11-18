@@ -40,11 +40,30 @@ background checks leave unchanged station DOM and loaded images intact.
 
 ## Production and interruption
 
-- 30 vehicles: 15 A, 15 T; eight Model T spare tire options.
+- Default run: **20 Model T and 10 Model A**, with **TTATTA** repeated in each
+  six-vehicle batch. The Dashboard lets the instructor edit both quantities and
+  the repeating pattern before starting. Quantities always total 30.
+- Changing a quantity suggests a matching pattern. The instructor can enter
+  another pattern of 1–30 T/A letters, including a full 30-order sequence.
+  Repeating it to 30 orders must match the chosen quantities; both the browser
+  and database validate that match. The preview separates the five batches.
+- **Apply Settings** saves without starting. **Start Timed Run** also applies
+  valid unsaved settings before starting. Settings lock while production is active.
+  Reset retains saved settings; **Use 20T:10A Defaults** restores the default draft.
+- Up to eight spare-tire options are distributed across Model T orders only.
+  With fewer than eight Model T vehicles, each T order gets one option.
 - Five batches of six at minutes 0, 8, 16, 24, and 32.
 - Station 11 withdraws from Supermarket 2 and creates a Station 6 Kanban.
 - Station 6 withdraws from Supermarket 1, replenishes Supermarket 2, and creates
   a Station 1 Kanban. Station 1 replenishes Supermarket 1.
+- At Start, Station 6 and Station 1 each receive one **Model T starter job**.
+  Station 1's starter is paired with Station 6's initial withdrawal. Completing
+  Station 6's starter does not create another Station 1 job. After each station
+  finishes its starter, it waits for normal work originating at the pacemaker.
+  This works in either starter-completion order and starts only once per run.
+  These starters represent initial work in process, separate from the 30 customer
+  vehicles. Their completion leaves Supermarket 1 unchanged overall and adds the
+  initial T work-in-process unit to Supermarket 2.
 - **Trigger ransomware** shows a visual training simulation on every station,
   blocks station transactions, and pauses the shared production clock.
 - The instructor Dashboard displays the incident and retains **Restore production**.
@@ -109,6 +128,13 @@ to that project's URL and **publishable** key. Never use a secret/service-role k
 Realtime public Broadcast must be allowed in the project's Realtime settings.
 No Auth configuration changes are required.
 
+Apply `db/production-settings.sql` after those three files to add editable
+production settings and starter jobs. It preserves already-running production;
+the corrected default takes effect on its next Reset if no settings were saved.
+`kanban_production_action` accepts a validated `p_config` for the instructor's
+`configure` action. The old six-argument RPC remains compatible and delegates to
+the same updated production logic. No private table permissions were broadened.
+
 GitHub Pages publishes the root of the `main` branch. All runtime assets are local,
 including the pinned Supabase JavaScript client **2.119.0** (MIT license in `vendor/`).
 The original HTML's six model images are extracted into `assets/`.
@@ -167,3 +193,9 @@ including iPad landscape/portrait with reduced browser-chrome height. A/T, spare
 waiting, and stopped fixtures require no page scrolling and use identical button
 coordinates. These are browser-emulation checks; physical iPad hardware was not
 available for verification.
+`tests/production-settings.sql` checks all 31 possible model mixes, T-only spare
+options, invalid patterns, configuration permissions/retries, reset persistence,
+both starter-completion orders, the subsequent normal pull chain, and stable
+links. It uses only a newly inserted fixture in a rolled-back transaction;
+existing production records are never modified by that test. Dashboard browser
+tests use mocked RPC responses to avoid mutating the active run.

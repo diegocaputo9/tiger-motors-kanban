@@ -4,7 +4,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEVICE_ACCESS='tm-permanent-device-v1';
 let tab='Dashboard',state=null,room=null,key=null,role=null,broadcastKey=null;
 let allowedTab=null,stationLinks={};
-let revision=-1,busy=false,online=false,lastContact=0;
+let revision=-1,busy=false,online=false,lastContact=0,starting=false;
 let serverEpoch=Date.now(),clockAnchor=performance.now();
 let channel=null,realtimeReady=false,refreshing=null,refreshAgain=false,pending=null;
 let accessToOpen=null,joining=false;
@@ -151,21 +151,27 @@ function currentItem(action){
   if(action==='completeSpare')return state.spares.find(x=>x.status==='open')?.id;
   return null;
 }
-async function command(action){
-  if(busy||!online||!state)return;
-  if(pending){message('Resolve the previous action before sending another.');return;}
-  pending={p_room:room,p_key:key,p_action:action,p_request:crypto.randomUUID(),p_generation:state.generation,p_item:currentItem(action)||null};
-  await sendPending();
+async function command(action,config=null){
+  if(busy||!online||!state)return false;
+  if(pending){message('Resolve the previous action before sending another.');return false;}
+  pending={p_room:room,p_key:key,p_action:action,p_request:crypto.randomUUID(),p_generation:state.generation,p_item:currentItem(action)||null,p_config:config};
+  return await sendPending();
 }
 async function sendPending(){
   busy=true;message();repaint();
-  try{const sent=Date.now();const data=await rpc('kanban_room_action',pending);pending=null;applySnapshot(data,sent);}
+  try{const sent=Date.now();const data=await rpc('kanban_production_action',pending);pending=null;applySnapshot(data,sent);return true;}
   catch(e){
     if(e.uncertain){online=false;message('The action could not be confirmed. Reconnecting and checking the same request…');}
     else{pending=null;message(e.message);await refresh();}
+    return false;
   }finally{busy=false;repaint();}
 }
-function start(){return command('start');}
+async function start(){
+  if(starting||busy||!online||role!=='instructor')return;
+  starting=true;
+  try{if(scheduleIsDirty()&&!await applySchedule())return;await command('start');}
+  finally{starting=false;}
+}
 function reset(){if(confirm('Reset the shared run on ALL connected devices?'))return command('reset');}
 function attack(){return command('attack');}
 function restore(){return command('restore');}

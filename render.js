@@ -1,6 +1,16 @@
 const MODELS={"11": {"A": "assets/model_a_image.png", "T": "assets/img_11_t.png"}, "6": {"A": "assets/img_6_a.png", "T": "assets/img_6_t.png"}, "1": {"A": "assets/img_1_a.png", "T": "assets/img_1_t.png"}};
 function ransom(){return '<div class="attack"><div style="font-size:65px">🔒</div><h1>YOUR PRODUCTION SYSTEM IS LOCKED</h1><h2 style="color:#ff5368">RANSOMWARE INCIDENT — ACCESS DENIED</h2><div class="amount">$100,000 USD in Bitcoin</div><h2 style="color:#ff5368;margin-top:26px">You have 10 days or your system and history will be wiped clean.</h2></div>'}
-function dashboard(){return (state.attack?'<div class="incident" role="status"><b>SIMULATED RANSOMWARE ACTIVE</b> — All station work and the production clock are paused. Use Restore Production to resume.</div>':'')+'<div class="panel"><h2>Instructor dashboard</h2><p>30 vehicles · 15 A / 15 T · eight T spare tire options · 6 orders every 480 seconds</p><div class="row">'+btn('START TIMED RUN','start()','primary',state.start!==null)+btn('TRIGGER RANSOMWARE','attack()','danger',state.attack||state.start===null)+btn('RESTORE PRODUCTION','restore()','success',!state.attack)+btn('RESET RUN','reset()')+'</div><p class="small muted">The ransomware display is a controlled simulation. It pauses the production clock and disables station transactions. The instructor can restore production from the dashboard.</p></div><div class="grid">'+[['Batches released',state.released+'/5'],['Vehicles processed',state.completed+'/30'],['Station 6 open',queueK(2).length],['Station 1 open',queueK(1).length],['Spare tires pending',state.spares.filter(x=>x.status==='open').length]].map(x=>'<div class="tile"><div>'+x[0]+'</div><div class="big">'+x[1]+'</div></div>').join('')+'</div>'}
+function dashboard(){
+  const t=state.orders.filter(o=>o.model==='T').length,a=state.orders.length-t;
+  const spares=state.orders.filter(o=>o.spare).length;
+  const controls='<section class="panel"><h2>Instructor dashboard</h2><p>30 vehicles · '+t+' T / '+a+' A · '+spares+' Model T spare tire options · 6 orders every 480 seconds</p><div class="row">'+
+    btn('START TIMED RUN','start()','primary',state.start!==null)+btn('TRIGGER RANSOMWARE','attack()','danger',state.attack||state.start===null)+
+    btn('RESTORE PRODUCTION','restore()','success',!state.attack)+btn('RESET RUN','reset()')+
+    '</div><p class="small muted">The ransomware display is a controlled simulation. It pauses the production clock and disables station transactions. The instructor can restore production from the dashboard.</p></section>';
+  const metrics='<div class="grid">'+[['Batches released',state.released+'/5'],['Vehicles processed',state.completed+'/30'],['Station 6 open',queueK(2).length],['Station 1 open',queueK(1).length],['Spare tires pending',state.spares.filter(x=>x.status==='open').length]].map(x=>'<div class="tile"><div>'+x[0]+'</div><div class="big">'+x[1]+'</div></div>').join('')+'</div>';
+  return (state.attack?'<div class="incident" role="status"><b>SIMULATED RANSOMWARE ACTIVE</b> — All station work and the production clock are paused. Use Restore Production to resume.</div>':'')+
+    controls+settingsPanel()+'<p class="startup-note">Stations 6 and 1 each begin with one Model T starter job. After those starters, further work follows pacemaker pulls.</p>'+metrics;
+}
 const IMAGE_SIZE={
   '11':{A:[704,609],T:[746,531]},
   '6':{A:[754,540],T:[754,464]},
@@ -21,7 +31,7 @@ function station(n){
       '<p class="muted">NEXT '+(n==='11'?'VEHICLE':'KANBAN')+'</p>'+
       '<div class="build-model">MODEL '+o.model+'</div><h3 class="build-id">'+o.id+'</h3>'+
       '<p class="build-option '+(n==='11'&&o.spare?'required':'')+'">'+
-      (n==='11'&&o.spare?'SPARE TIRE REQUIRED':'Standard build')+'</p></div>'+
+      (o.startup?'Initial Model T starter job':n==='11'&&o.spare?'SPARE TIRE REQUIRED':'Standard build')+'</p></div>'+
       '<figure class="build-preview"><img alt="Model '+o.model+' subassembly" src="'+MODELS[n][o.model]+
       '" width="'+width+'" height="'+height+'" decoding="async"></figure></div>';
   }else work='<div class="station-work empty-work"><div><h3>Ready for the next job</h3><p>'+
@@ -42,7 +52,7 @@ function spare(){
     workActions('completeSpare',!!q,state.spares.filter(x=>x.status==='open').length,'Pending spares')+'</section>';
 }
 function eventHistory(){return '<div class="panel"><h2>Event history</h2><table><tr><th>Time</th><th>Event</th><th>Details</th></tr>'+state.events.map(e=>'<tr><td>'+e.time+'</td><td>'+e.type+'</td><td>'+e.details+'</td></tr>').join('')+'</table></div>'}
-let renderedContent='',renderedTabs='';
+let renderedContent='',renderedTabs='',renderedScheduleState='';
 function render(){
   if(!state)return;
   const isStation=['Station 11','Station 6','Station 1','Spare Tire'].includes(tab);
@@ -53,6 +63,8 @@ function render(){
   const views=role==='instructor'?TABS:[allowedTab];
   const navHTML=views.filter(Boolean).map(t=>btn(t,'setTab('+JSON.stringify(t)+')',tab===t?'active':'')).join('');
   if(navHTML!==renderedTabs){nav.innerHTML=navHTML;renderedTabs=navHTML;}
+  const scheduleState=JSON.stringify({state,tab,role,busy,online});
+  if(tab==='Dashboard'&&document.getElementById('schedule-form')&&scheduleState===renderedScheduleState)return;
   let h;
   if(state.attack&&(tab!=='Dashboard'||role!=='instructor'))h=ransom();
   else if(tab==='Dashboard')h=dashboard();
@@ -63,5 +75,6 @@ function render(){
   else h=eventHistory();
   // Leave an unchanged station's DOM and image intact during background checks.
   if(h!==renderedContent){document.getElementById('app').innerHTML=h;renderedContent=h;}
+  renderedScheduleState=scheduleState;
 }
 function setTab(t){if(!TABS.includes(t)||(role!=='instructor'&&t!==allowedTab))return;tab=t;updateHash();render()}
