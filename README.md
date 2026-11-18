@@ -112,6 +112,10 @@ No Auth configuration changes are required.
 GitHub Pages publishes the root of the `main` branch. All runtime assets are local,
 including the pinned Supabase JavaScript client **2.119.0** (MIT license in `vendor/`).
 The original HTML's six model images are extracted into `assets/`.
+The Spare Tire station shows `assets/spare-tire.png` only for a pending order.
+It is a transparent cutout from the user-supplied tire photograph, displayed in
+the same reserved image track as the other three stations. The image-edit prompt
+and source provenance are recorded in `assets/spare-tire.source.md`.
 
 For a local preview:
 

@@ -34,8 +34,9 @@ function heijunka(){return '<div class="panel"><h2>Heijunka schedule</h2><p>Five
 function inventory(){return '<div class="panel"><h2>Supermarket inventory</h2><table><tr><th>Location</th><th>Model A</th><th>Model T</th></tr>'+['S1','S2'].map(s=>'<tr><td>'+s+'</td><td>'+state.inventory[s].A+'</td><td>'+state.inventory[s].T+'</td></tr>').join('')+'</table><p>Starting inventory: eight units per model in each supermarket (illustrative).</p></div>'}
 function spare(){
   const q=state.spares.find(x=>x.status==='open');
-  const work=q?'<div class="station-work spare-work"><div class="build-details"><div class="build-model">SPARE TIRE</div>'+
-    '<p class="muted">Build spare for</p><h3 class="build-id">'+q.id+'</h3></div></div>':
+  const work=q?'<div class="station-work"><div class="build-details"><p class="muted">NEXT SPARE TIRE</p><div class="build-model">SPARE TIRE</div>'+
+    '<h3 class="build-id">'+q.id+'</h3><p class="build-option">Model T option order</p></div>'+
+    '<figure class="build-preview"><img alt="Spare tire with black tread, blue rim and orange center" src="assets/spare-tire.png" width="1254" height="1254" decoding="async"></figure></div>':
     '<div class="station-work empty-work"><div><h3>Ready for the next spare</h3><p>Waiting for Model T option order</p></div></div>';
   return '<section class="panel station-panel"><h2>Spare Tire Station</h2>'+work+
     workActions('completeSpare',!!q,state.spares.filter(x=>x.status==='open').length,'Pending spares')+'</section>';

@@ -43,9 +43,6 @@ body.station-screen{
 .empty-work{grid-template-columns:1fr;justify-items:center;text-align:center}
 .empty-work h3{font-size:clamp(1.5rem,1.2rem + 1vw,2.25rem);margin:0 0 12px}
 .empty-work p{font-size:18px;color:#586b7b;margin:0;line-height:1.5}
-.spare-work{grid-template-columns:1fr;justify-items:center;text-align:center}
-.spare-work .build-details>p{margin-top:20px}
-.spare-work .build-id{font-size:clamp(2.25rem,1.5rem + 3vw,4rem)}
 .station-screen .attack{width:100%;height:100%;min-height:0;padding:20px;gap:12px}
 .station-screen .attack>div:first-child{font-size:38px!important;line-height:1}
 .station-screen .attack h1{font-size:clamp(1.75rem,1rem + 3vw,3rem);line-height:1.1}
@@ -57,7 +54,7 @@ body.station-screen{
   .station-screen .clock-chip{padding:9px 10px}
   .station-screen .clock-chip:last-child{flex-basis:auto;flex:1.5}
   .station-panel{padding:20px;gap:16px}
-  .station-work:not(.empty-work):not(.spare-work){grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px;text-align:center}
+  .station-work:not(.empty-work){grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px;text-align:center}
   .station-work .build-option{justify-content:center;min-height:1.6em}
   .station-work .build-id{margin:10px 0 4px}
   .build-preview{min-height:0}
