@@ -40,19 +40,30 @@ background checks leave unchanged station DOM and loaded images intact.
 
 ## Production and interruption
 
-- Default run: **20 Model T and 10 Model A**, with **TTATTA** repeated in each
-  six-vehicle batch. The Dashboard lets the instructor edit both quantities and
-  the repeating pattern before starting. Quantities always total 30.
+- Default **40-minute** run: **30 orders, 20 Model T and 10 Model A**, with
+  **TTATTA** repeated in each six-vehicle batch. Releases occur at minutes
+  **0, 8, 16, 24 and 32** (480 seconds apart).
+- Optional **20-minute** run: **15 orders, 11 Model T and 4 Model A**, with
+  **TTAT · TATT · TATT · ATT** as its exact default sequence. Releases occur at
+  minutes **0, 5, 10 and 15** (300 seconds apart), in batches of **4, 4, 4 and 3**.
+  The final three-card batch prevents an unintended sixteenth order.
+- The Dashboard lets the instructor select the run length and edit both quantities
+  and the repeating pattern before starting. Changing run length loads that mode's
+  default mix; it does not save or start until Apply Settings or Start is pressed.
+  Quantities must total the mode's 30 or 15 orders.
 - Changing a quantity suggests a matching pattern. The instructor can enter
-  another pattern of 1–30 T/A letters, including a full 30-order sequence.
-  Repeating it to 30 orders must match the chosen quantities; both the browser
-  and database validate that match. The preview separates the five batches.
+  another pattern of 1–30 or 1–15 T/A letters, including the full order sequence.
+  Repeating it to the selected total must match the chosen quantities; both the
+  browser and database validate that match. The preview separates the batches.
 - **Apply Settings** saves without starting. **Start Timed Run** also applies
   valid unsaved settings before starting. Settings lock while production is active.
-  Reset retains saved settings; **Use 20T:10A Defaults** restores the default draft.
-- Up to eight spare-tire options are distributed across Model T orders only.
-  With fewer than eight Model T vehicles, each T order gets one option.
-- Five batches of six at minutes 0, 8, 16, 24, and 32.
+  Reset retains saved duration and mix. The defaults button restores the selected
+  mode's default draft.
+- Up to eight spare-tire options in the 40-minute run, or four in the 20-minute
+  run, are distributed across Model T orders only. With fewer Model T vehicles
+  than options, each T order gets one option.
+- Run length is the production target, shown beside the elapsed clock. Reaching
+  it does not automatically lock unfinished station work or erase the run.
 - Station 11 withdraws from Supermarket 2 and creates a Station 6 Kanban.
 - Station 6 withdraws from Supermarket 1, replenishes Supermarket 2, and creates
   a Station 1 Kanban. Station 1 replenishes Supermarket 1.
@@ -61,7 +72,7 @@ background checks leave unchanged station DOM and loaded images intact.
   Station 6's starter does not create another Station 1 job. After each station
   finishes its starter, it waits for normal work originating at the pacemaker.
   This works in either starter-completion order and starts only once per run.
-  These starters represent initial work in process, separate from the 30 customer
+  These starters represent initial work in process, separate from the customer
   vehicles. Their completion leaves Supermarket 1 unchanged overall and adds the
   initial T work-in-process unit to Supermarket 2.
 - **Trigger ransomware** shows a visual training simulation on every station,
@@ -135,6 +146,11 @@ the corrected default takes effect on its next Reset if no settings were saved.
 `configure` action. The old six-argument RPC remains compatible and delegates to
 the same updated production logic. No private table permissions were broadened.
 
+Apply `db/production-modes.sql` next to add the 20-minute mode and dynamic batch
+timing. It changes functions only, preserving every existing room record and key.
+Legacy configs without `runMinutes` retain the 40-minute schedule. Station snapshots
+receive only shared schedule metadata, alongside their existing restricted data.
+
 GitHub Pages publishes the root of the `main` branch. All runtime assets are local,
 including the pinned Supabase JavaScript client **2.119.0** (MIT license in `vendor/`).
 The original HTML's six model images are extracted into `assets/`.
@@ -199,3 +215,11 @@ both starter-completion orders, the subsequent normal pull chain, and stable
 links. It uses only a newly inserted fixture in a rolled-back transaction;
 existing production records are never modified by that test. Dashboard browser
 tests use mocked RPC responses to avoid mutating the active run.
+`tests/production-modes.sql` checks all 47 possible mixes across both modes, exact
+release boundaries, the short final batch, pause compensation, legacy timing,
+station snapshot restrictions, a full 15-order pull chain and four spare completions,
+reset persistence, and stable links. Its new random fixture is rolled back.
+Chromium/WebKit browser checks cover both mode defaults, mode switching without
+auto-submission, editable quantities/patterns, saved settings across reload/reset,
+the 15-card Heijunka display, five-minute clocks on restricted station screens,
+starter jobs, fixed Next button coordinates, both iPad orientations, and mobile fit.

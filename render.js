@@ -1,13 +1,14 @@
 const MODELS={"11": {"A": "assets/model_a_image.png", "T": "assets/img_11_t.png"}, "6": {"A": "assets/img_6_a.png", "T": "assets/img_6_t.png"}, "1": {"A": "assets/img_1_a.png", "T": "assets/img_1_t.png"}};
 function ransom(){return '<div class="attack"><div style="font-size:65px">🔒</div><h1>YOUR PRODUCTION SYSTEM IS LOCKED</h1><h2 style="color:#ff5368">RANSOMWARE INCIDENT — ACCESS DENIED</h2><div class="amount">$100,000 USD in Bitcoin</div><h2 style="color:#ff5368;margin-top:26px">You have 10 days or your system and history will be wiped clean.</h2></div>'}
 function dashboard(){
+  const plan=currentPlan();
   const t=state.orders.filter(o=>o.model==='T').length,a=state.orders.length-t;
   const spares=state.orders.filter(o=>o.spare).length;
-  const controls='<section class="panel"><h2>Instructor dashboard</h2><p>30 vehicles · '+t+' T / '+a+' A · '+spares+' Model T spare tire options · 6 orders every 480 seconds</p><div class="row">'+
+  const controls='<section class="panel"><h2>Instructor dashboard</h2><p>'+plan.runMinutes+'-minute run · '+plan.totalOrders+' vehicles · '+t+' T / '+a+' A · '+spares+' Model T spare tire options · '+(plan.runMinutes===20?'4 / 4 / 4 / 3':'6')+' orders every '+plan.intervalSeconds+' seconds</p><div class="row">'+
     btn('START TIMED RUN','start()','primary',state.start!==null)+btn('TRIGGER RANSOMWARE','attack()','danger',state.attack||state.start===null)+
     btn('RESTORE PRODUCTION','restore()','success',!state.attack)+btn('RESET RUN','reset()')+
     '</div><p class="small muted">The ransomware display is a controlled simulation. It pauses the production clock and disables station transactions. The instructor can restore production from the dashboard.</p></section>';
-  const metrics='<div class="grid">'+[['Batches released',state.released+'/5'],['Vehicles processed',state.completed+'/30'],['Station 6 open',queueK(2).length],['Station 1 open',queueK(1).length],['Spare tires pending',state.spares.filter(x=>x.status==='open').length]].map(x=>'<div class="tile"><div>'+x[0]+'</div><div class="big">'+x[1]+'</div></div>').join('')+'</div>';
+  const metrics='<div class="grid">'+[['Batches released',state.released+'/'+plan.batchCount],['Vehicles processed',state.completed+'/'+plan.totalOrders],['Station 6 open',queueK(2).length],['Station 1 open',queueK(1).length],['Spare tires pending',state.spares.filter(x=>x.status==='open').length]].map(x=>'<div class="tile"><div>'+x[0]+'</div><div class="big">'+x[1]+'</div></div>').join('')+'</div>';
   return (state.attack?'<div class="incident" role="status"><b>SIMULATED RANSOMWARE ACTIVE</b> — All station work and the production clock are paused. Use Restore Production to resume.</div>':'')+
     controls+settingsPanel()+'<p class="startup-note">Stations 6 and 1 each begin with one Model T starter job. After those starters, further work follows pacemaker pulls.</p>'+metrics;
 }
@@ -40,7 +41,10 @@ function station(n){
   return '<section class="panel station-panel"><h2>Station '+n+' — '+name+'</h2>'+work+
     workActions('complete'+n,!!o,q.length)+'</section>';
 }
-function heijunka(){return '<div class="panel"><h2>Heijunka schedule</h2><p>Five batches of six vehicles, released at 0, 8, 16, 24 and 32 minutes.</p>'+Array.from({length:5},(_,b)=>'<div class="batch"><b>Batch '+(b+1)+' — Minute '+(b*8)+' — '+(b<state.released?'RELEASED':'WAITING')+'</b><div class="orders">'+state.orders.slice(b*6,b*6+6).map(o=>'<div class="order '+(o.model==='T'?'t':'')+'">'+o.id+'<br><b>Model '+o.model+'</b><br>'+(o.spare?'SPARE':'Standard')+'</div>').join('')+'</div></div>').join('')+'</div>'}
+function heijunka(){
+  const plan=currentPlan();
+  return '<div class="panel"><h2>Heijunka schedule</h2><p>'+scheduleHelp(plan)+'</p>'+Array.from({length:plan.batchCount},(_,b)=>'<div class="batch"><b>Batch '+(b+1)+' — Minute '+(b*plan.intervalSeconds/60)+' — '+(b<state.released?'RELEASED':'WAITING')+'</b><div class="orders">'+state.orders.slice(b*plan.batchSize,(b+1)*plan.batchSize).map(o=>'<div class="order '+(o.model==='T'?'t':'')+'">'+o.id+'<br><b>Model '+o.model+'</b><br>'+(o.spare?'SPARE':'Standard')+'</div>').join('')+'</div></div>').join('')+'</div>';
+}
 function inventory(){return '<div class="panel"><h2>Supermarket inventory</h2><table><tr><th>Location</th><th>Model A</th><th>Model T</th></tr>'+['S1','S2'].map(s=>'<tr><td>'+s+'</td><td>'+state.inventory[s].A+'</td><td>'+state.inventory[s].T+'</td></tr>').join('')+'</table><p>Starting inventory: eight units per model in each supermarket (illustrative).</p></div>'}
 function spare(){
   const q=state.spares.find(x=>x.status==='open');

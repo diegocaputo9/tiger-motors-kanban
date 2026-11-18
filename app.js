@@ -104,8 +104,9 @@ function countdown(){
   if(!online)return 'Waiting for connection';
   if(state.start===null)return 'STOPPED — waiting for instructor to start';
   if(state.attack)return 'Production clock paused';
-  if(state.released===5)return 'All batches released';
-  const ms=Math.max(0,state.released*480000-(serverNow()-state.start-state.paused));
+  const plan=currentPlan();
+  if(state.released>=plan.batchCount)return 'All batches released';
+  const ms=Math.max(0,state.released*plan.intervalSeconds*1000-(serverNow()-state.start-state.paused));
   return 'Next batch in '+String(Math.floor(ms/60000)).padStart(2,'0')+':'+String(Math.floor(ms%60000/1000)).padStart(2,'0');
 }
 function serverNow(){return serverEpoch+performance.now()-clockAnchor;}
@@ -134,7 +135,7 @@ function updateClocks(){
   el('wall-clock').dateTime=new Date(now).toISOString();
   el('run-clock').textContent=!state?'00:00:00':!online?'Waiting for connection':state.start===null?'00:00:00':
     formatElapsed(state.start,(state.attack?state.attackStart:now)-state.paused);
-  el('run-clock-label').textContent=state?.attack?'Run time · paused':'Run time';
+  el('run-clock-label').textContent='Run time'+(state?' · '+currentPlan().runMinutes+' min target':'')+(state?.attack?' · paused':'');
   el('batch-clock').textContent=state?countdown():'Waiting for production';
 }
 function btn(label,action,cls='',disabled=false){

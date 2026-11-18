@@ -8,7 +8,7 @@ begin
  s:=kanban_private.fresh();
  select string_agg(o->>'model','' order by n) into seq
  from jsonb_array_elements(s->'orders') with ordinality x(o,n);
- if seq<>repeat('TTATTA',5) or s->'config'<>'{"tCount":20,"aCount":10,"pattern":"TTATTA"}'::jsonb then
+ if seq<>repeat('TTATTA',5) or s->'config'<>'{"runMinutes":40,"tCount":20,"aCount":10,"pattern":"TTATTA"}'::jsonb then
    raise exception 'Default 20T:10A TTATTA schedule failed';
  end if;
  for t in 0..30 loop
@@ -40,7 +40,7 @@ begin
  if a->'state'->>'generation'<>b->'state'->>'generation' or a->>'revision'<>b->>'revision' then raise exception 'Configure retry was not idempotent'; end if;
  g:=(a->'state'->>'generation')::uuid;
  a:=kanban_private.production_action(r.id,r.instructor_key,'reset',gen_random_uuid(),g);
- if a->'state'->'config'<>'{"tCount":10,"aCount":20,"pattern":"TAATAA"}'::jsonb then raise exception 'Reset lost chosen settings'; end if;
+ if a->'state'->'config'<>'{"runMinutes":40,"tCount":10,"aCount":20,"pattern":"TAATAA"}'::jsonb then raise exception 'Reset lost chosen settings'; end if;
  g:=(a->'state'->>'generation')::uuid;
  begin
    perform kanban_private.production_action(r.id,k6,'configure',gen_random_uuid(),g,null,'{"tCount":20,"aCount":10,"pattern":"TTATTA"}');
